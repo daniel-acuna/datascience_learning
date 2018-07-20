@@ -1,19 +1,18 @@
 from __future__ import print_function
 import numpy as np
-import pandas as pd
 from bqplot import (
     Axis, ColorAxis, LinearScale, DateScale, DateColorScale, OrdinalScale,
     OrdinalColorScale, ColorScale, Scatter, Lines, Figure, Tooltip
 )
 from ipywidgets import Label
-from ipywidgets import HBox
+from ipywidgets import HBox, VBox
 
 from sklearn.linear_model import LinearRegression
 from sklearn.preprocessing import PolynomialFeatures
 from sklearn.pipeline import make_pipeline
 
 import ipywidgets as widgets
-
+from .datasets import fake_datasets
 
 def polynomial_regression():
     """Polynomial regression example"""
@@ -31,7 +30,7 @@ def polynomial_regression():
                 line_style='dotted',
                 colors=['orange'])
 
-    def update_line():
+    def update_line(change=None):
         if len(scat.x) == 0:
             lin.x = []
             lin.y = []
@@ -59,7 +58,6 @@ def polynomial_regression():
 
     fig = Figure(marks=[scat, lin],
                  axes=[ax_x, ax_y],
-                 title='Quadratic regression example',
                  fig_margin={'top': 0,
                              'bottom': 30,
                              'left': 40,
@@ -71,13 +69,33 @@ def polynomial_regression():
         update_line()
 
     degree = widgets.IntSlider(value=regression_config['degree'],
-                               min=1, max=5, step=1, description='Degree')
+                               min=1, max=5, step=1,
+                               description='Degree')
     degree.observe(degree_change, names='value')
 
-    def on_button_clicked():
+    def on_button_clicked(change=None):
         with scat.hold_sync():
             scat.x = []
             scat.y = []
 
+    dropdown_w = widgets.Dropdown(
+        options=fake_datasets(ndim=2),
+        value=None,
+        description='Dataset:',
+    )
+
+    def dropdown_on_change(change):
+        if change['type'] == 'change' and change['name'] == 'value':
+            print("changed to %s" % change['new'])
+            x, y = fake_datasets(name=change['new'])
+            with scat.hold_sync():
+                scat.x = x.flatten()
+                scat.y = y.flatten()
+
+    dropdown_w.observe(dropdown_on_change)
+
     button.on_click(on_button_clicked)
-    return VBox((HBox((degree, button)), fig))
+    return VBox((Label(value="test"),
+                 dropdown_w,
+                 HBox((degree, button)),
+                 fig))
