@@ -1,6 +1,8 @@
-import datascience_learning as dsl
 import numpy as np
 import pytest
+from copy import copy
+
+import datascience_learning as dsl
 
 
 def test_stochaticfunction():
@@ -38,8 +40,29 @@ def test_mse():
     f_linear = dsl.Polynomial({1: 1}, sd=1.)
     bias_sq1, var1, _ = f_poly.mse(x=0, fh=f_linear)
     assert bias_sq1 > 0 and var1 > 0
-    bias_sq2, _, _ = f_poly.mse(f_poly)
-    np.testing.assert_almost_equal(bias_sq2, 0)
 
     bias_sq3, var3, _ = f_poly.mse(x=0, fh=f_poly2)
     np.testing.assert_almost_equal([bias_sq3, var3], [0, 0])
+
+
+def test_design_matrix():
+    f_intercept = dsl.Polynomial({0: 1}, sd=1)
+    dm = f_intercept.design_matrix(np.array([1]))
+    assert dm.shape == (1, 1)
+
+    dm2 = f_intercept.design_matrix(np.array([1, 2, 3, 4]))
+    assert len(np.unique(dm2)) == 1
+
+    f_linear = dsl.Polynomial({0: 1, 1: 1}, sd=1)
+    x = np.linspace(0, 10)
+    dm3 = f_linear.design_matrix(x)
+    assert dm3.shape == (len(x), len(f_linear.terms))
+
+
+def test_fit():
+    terms = {0: 1, 2: 2}
+    f_poly = dsl.Polynomial(copy(terms), sd=0.)
+    x = np.linspace(0, 5)
+    y = f_poly.sample(x)
+    f_poly.fit(x, y)
+    np.testing.assert_almost_equal(list(terms.values()), list(f_poly.terms.values()))

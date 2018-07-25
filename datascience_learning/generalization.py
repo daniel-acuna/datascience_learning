@@ -1,7 +1,8 @@
+from abc import ABC, abstractmethod
 from typing import Dict, Union, List
+from sklearn.linear_model import LinearRegression
 
 import numpy as np
-from abc import ABC, abstractmethod
 
 
 class StochasticFunction(ABC):
@@ -15,8 +16,12 @@ class StochasticFunction(ABC):
         pass
 
     @abstractmethod
-    def sample(self, x: np.ndarray = None, n: int) -> Union[np.ndarray, List[np.ndarray]]:
+    def sample(self, x: np.ndarray, n: int) -> Union[np.ndarray, List[np.ndarray]]:
         pass
+
+    # @abstractmethod
+    # def fit(self, x: np.ndarray, y: np.ndarray):
+    #     pass
 
 
 class Polynomial(StochasticFunction):
@@ -38,12 +43,14 @@ class Polynomial(StochasticFunction):
             y = self.sample(x).flatten()
             return x, y
         else:
-            return np.repeat(self(x), n, 0) + np.random.randn(n, len(x)) * self.sd
+            # TODO: Fix sampling
+            y = self(x)
+            return y + np.random.randn(len(y)) * self.sd
 
     def mse(self, x: float, fh: StochasticFunction) -> List[float]:
         """Decompose mean squared error into bias^2, variance, and noise"""
         n = 10000
-        x = np.ndarray([x])
+        x = np.array([x])
         y = np.repeat(self(x), n)
         yp = fh.sample(x=x, n=n)
 
@@ -51,3 +58,17 @@ class Polynomial(StochasticFunction):
         variance = np.var(yp)
         error = self.sd ** 2
         return [bias_sq, variance, error]
+
+    def design_matrix(self, x: np.ndarray) -> np.ndarray:
+        """Create the design matrix for the polynomial based on x"""
+        x = np.atleast_2d(x).T
+        exponents = np.atleast_2d(np.array(list(exponent for exponent in self.terms.keys())))
+        weight = np.atleast_2d(np.array(list(weight for weight in self.terms.values())))
+        return weight * (x ** exponents)
+
+    def fit(self, x: np.ndarray, y: np.ndarray) -> StochasticFunction:
+        design_matrix = self.design_matrix(x)
+        new_weights = LinearRegression().fit(design_matrix, y).coef_
+
+        for idx, k in enumerate(self.terms.keys()):
+            self.terms[k] = new_weights[idx]
